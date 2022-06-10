@@ -78,6 +78,25 @@ trap(struct trapframe *tf)
     lapiceoi();
     break;
 
+  case T_PGFLT:
+      if (KERNBASE > rcr2()) { //rcr2 address causing pagefault, checking if from userspace
+        if (tf->esp >= rcr2()) {
+            uint topOfStack = KERNBASE - myproc()->stackNum * PGSIZE; // right above page guard, where to start allocating
+            if (allocuvm(myproc()->pgdir, PGROUNDDOWN(topOfStack - 1), topOfStack - 1) == 0) { // check if we can allocate
+                cprintf("No new page can be allocated. \n");
+                exit();
+            }
+            myproc()->stackNum++;
+            cprintf("%d pages currently allocated. \n", myproc()->stackNum);
+        }
+      }
+      else {
+          cprintf("Address is out of bounds. \n");
+          exit();
+      }
+      break;
+
+
   //PAGEBREAK: 13
   default:
     if(myproc() == 0 || (tf->cs&3) == 0){
